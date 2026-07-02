@@ -16,13 +16,13 @@ if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'null' || SUPABASE_ANON_KEY.leng
   localStorage.setItem('findash_supabase_key', DEFAULT_KEY);
 }
 
-let supabase = null;
+let dbClient = null;
 
 // Initialize Supabase client if keys are present
 function initSupabase() {
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     try {
-      supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       return true;
     } catch (e) {
       showToast(currentLang === 'ar' ? 'فشل الاتصال بـ Supabase' : 'Connection to Supabase failed', 'error');
@@ -241,7 +241,7 @@ function setLanguage(lang) {
   }
   
   // Re-draw text labels in graphs and timeline items
-  if (supabase) {
+  if (dbClient) {
     calculateAndRenderAll();
   }
 }
@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
   checkSupabaseConfiguration();
 
   // If Supabase initialized, fetch data directly (No auth checking)
-  if (supabase) {
+  if (dbClient) {
     syncData();
   }
 
@@ -421,12 +421,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 9. DATABASE LOGIC (FETCH AND SYNC)
 async function syncData() {
-  if (!supabase) return;
+  if (!dbClient) return;
   showLoader(true);
 
   try {
     // 1. Fetch Platforms
-    const { data: platforms, error: pError } = await supabase
+    const { data: platforms, error: pError } = await dbClient
       .from('platforms')
       .select('*')
       .eq('active', true);
@@ -435,7 +435,7 @@ async function syncData() {
     platformsList = platforms || [];
 
     // 2. Fetch Global Settings (Single row)
-    const { data: settings, error: sError } = await supabase
+    const { data: settings, error: sError } = await dbClient
       .from('settings')
       .select('*')
       .limit(1)
@@ -446,7 +446,7 @@ async function syncData() {
       appSettings = settings;
     } else {
       // Create single default settings if not exists
-      const { data: newSettings, error: nsError } = await supabase
+      const { data: newSettings, error: nsError } = await dbClient
         .from('settings')
         .insert({
           currency: 'SAR',
@@ -463,7 +463,7 @@ async function syncData() {
     }
 
     // 3. Fetch Transactions
-    const { data: transactions, error: tError } = await supabase
+    const { data: transactions, error: tError } = await dbClient
       .from('transactions')
       .select('*, platforms(name, color, icon)')
       .order('date', { ascending: false })
@@ -473,7 +473,7 @@ async function syncData() {
     transactionsList = transactions || [];
 
     // 4. Fetch Audit Activity Logs
-    const { data: logs, error: lError } = await supabase
+    const { data: logs, error: lError } = await dbClient
       .from('activity_logs')
       .select('*')
       .order('created_at', { ascending: false })
@@ -499,10 +499,10 @@ async function syncData() {
 
 // Log actions to the audit log table
 async function logActivity(trxId, action, oldValue, newValue) {
-  if (!supabase) return;
+  if (!dbClient) return;
   const details = JSON.stringify({ old: oldValue, new: newValue });
   
-  await supabase.from('activity_logs').insert({
+  await dbClient.from('activity_logs').insert({
     transaction_id: trxId,
     action: action,
     details: details
@@ -1083,7 +1083,7 @@ function closeModal(id) {
 
 async function handleTransactionSubmit(e) {
   e.preventDefault();
-  if (!supabase) return;
+  if (!dbClient) return;
   showLoader(true);
 
   const trxId = document.getElementById('edit-trx-id').value;
@@ -1111,7 +1111,7 @@ async function handleTransactionSubmit(e) {
       const oldTrx = transactionsList.find(t => t.id === trxId);
       
       // Update
-      const { error } = await supabase
+      const { error } = await dbClient
         .from('transactions')
         .update(trxData)
         .eq('id', trxId);
@@ -1121,7 +1121,7 @@ async function handleTransactionSubmit(e) {
       await logActivity(trxId, 'UPDATE', oldTrx, trxData);
     } else {
       // Create new
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('transactions')
         .insert(trxData)
         .select()
@@ -1151,13 +1151,13 @@ function openDeleteConfirmModal(id) {
 }
 
 async function deleteTransaction() {
-  if (!deleteTargetId || !supabase) return;
+  if (!deleteTargetId || !dbClient) return;
   showLoader(true);
 
   try {
     const oldTrx = transactionsList.find(t => t.id === deleteTargetId);
     
-    const { error } = await supabase
+    const { error } = await dbClient
       .from('transactions')
       .delete()
       .eq('id', deleteTargetId);
@@ -1214,8 +1214,8 @@ async function saveSettings(e) {
   }
 
   try {
-    if (supabase && appSettings && appSettings.id) {
-      const { error } = await supabase
+    if (dbClient && appSettings && appSettings.id) {
+      const { error } = await dbClient
         .from('settings')
         .update({
           currency,
@@ -1246,7 +1246,7 @@ async function saveSettings(e) {
     
     setLanguage(defaultLang);
     
-    if (supabase) {
+    if (dbClient) {
       await syncData();
     } else {
       showToast(currentLang === 'ar' ? 'تم حفظ المفاتيح محلياً، يرجى إعادة التحميل' : 'Keys saved locally, please reload', 'info');
