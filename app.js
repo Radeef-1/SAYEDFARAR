@@ -1,8 +1,21 @@
 // FinDash - Supabase Bilingual Financial Dashboard App Script (No Authentication)
 
 // 1. DYNAMIC CONFIGURATION STATE FOR SUPABASE
-let SUPABASE_URL = localStorage.getItem('findash_supabase_url') || '';
-let SUPABASE_ANON_KEY = localStorage.getItem('findash_supabase_key') || '';
+let SUPABASE_URL = localStorage.getItem('findash_supabase_url');
+let SUPABASE_ANON_KEY = localStorage.getItem('findash_supabase_key');
+
+const DEFAULT_URL = 'https://rmkshljkemrzyzrnhcvm.supabase.co';
+const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJta3NobGprZW1yenl6cm5oY3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5Nzc4NzMsImV4cCI6MjA5ODU1Mzg3M30.oBAJz_K55b3r1I6zPUT6Nx-CwXSTexhM5CLznuMcR5I';
+
+if (!SUPABASE_URL || SUPABASE_URL === 'null' || !SUPABASE_URL.startsWith('http')) {
+  SUPABASE_URL = DEFAULT_URL;
+  localStorage.setItem('findash_supabase_url', DEFAULT_URL);
+}
+if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'null' || SUPABASE_ANON_KEY.length < 50) {
+  SUPABASE_ANON_KEY = DEFAULT_KEY;
+  localStorage.setItem('findash_supabase_key', DEFAULT_KEY);
+}
+
 let supabase = null;
 
 // Initialize Supabase client if keys are present
