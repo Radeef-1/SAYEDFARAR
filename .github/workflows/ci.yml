@@ -1,0 +1,27 @@
+name: CI Code Quality Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check Javascript Syntax (sw.js & app.js)
+        run: |
+          node --check sw.js
+          node --check app.js
+
+      - name: Validate HTML Syntax
+        run: npx htmlhint index.html
