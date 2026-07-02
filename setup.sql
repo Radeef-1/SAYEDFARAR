@@ -1,11 +1,20 @@
--- Supabase Database Setup Script (No Authentication)
+-- Supabase Database Setup Script (No Authentication - Fresh Setup)
 -- Paste this script directly in the Supabase SQL Editor
 
--- 1. Enable UUID Extension if not enabled
+-- 1. Drop old tables, triggers, and sequences to clean up previous schema version
+DROP TRIGGER IF EXISTS trigger_set_trx_number ON public.transactions;
+DROP FUNCTION IF EXISTS set_transaction_number();
+DROP TABLE IF EXISTS public.activity_logs CASCADE;
+DROP TABLE IF EXISTS public.transactions CASCADE;
+DROP TABLE IF EXISTS public.settings CASCADE;
+DROP TABLE IF EXISTS public.platforms CASCADE;
+DROP SEQUENCE IF EXISTS trx_number_seq CASCADE;
+
+-- 2. Enable UUID Extension if not enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Platforms Table
-CREATE TABLE IF NOT EXISTS public.platforms (
+-- 3. Platforms Table
+CREATE TABLE public.platforms (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     color TEXT, -- HEX or RGB value
@@ -21,10 +30,10 @@ INSERT INTO public.platforms (name, color, icon) VALUES
 ('Snapchat', '#fffc00', 'ghost')
 ON CONFLICT (name) DO NOTHING;
 
--- 3. Transactions Table (Consolidated)
-CREATE SEQUENCE IF NOT EXISTS trx_number_seq;
+-- 4. Transactions Table (Consolidated)
+CREATE SEQUENCE trx_number_seq;
 
-CREATE TABLE IF NOT EXISTS public.transactions (
+CREATE TABLE public.transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_number TEXT UNIQUE,
     type TEXT NOT NULL CHECK (type IN ('topup', 'withdrawal')),
@@ -38,8 +47,8 @@ CREATE TABLE IF NOT EXISTS public.transactions (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 4. User Settings Table (Single Global Row)
-CREATE TABLE IF NOT EXISTS public.settings (
+-- 5. User Settings Table (Single Global Row)
+CREATE TABLE public.settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     low_balance_warning NUMERIC(15, 2) NOT NULL DEFAULT 500.00,
     critical_balance NUMERIC(15, 2) NOT NULL DEFAULT 100.00,
@@ -50,13 +59,12 @@ CREATE TABLE IF NOT EXISTS public.settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- Prepopulate Default Settings if empty
+-- Prepopulate Default Settings
 INSERT INTO public.settings (low_balance_warning, critical_balance, currency, default_language, theme)
-SELECT 500.00, 100.00, 'SAR', 'ar', 'dark'
-WHERE NOT EXISTS (SELECT 1 FROM public.settings);
+VALUES (500.00, 100.00, 'SAR', 'ar', 'dark');
 
--- 5. Activity Logs (Audit Trail)
-CREATE TABLE IF NOT EXISTS public.activity_logs (
+-- 6. Activity Logs (Audit Trail)
+CREATE TABLE public.activity_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id UUID, -- NULL if transaction was deleted
     action TEXT NOT NULL CHECK (action IN ('CREATE', 'UPDATE', 'DELETE')),
@@ -64,13 +72,13 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 6. Disable Row Level Security (RLS) since authentication is disabled
+-- 7. Disable Row Level Security (RLS) since authentication is disabled
 ALTER TABLE public.platforms DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
 
--- 7. Trigger for Transaction Numbers
+-- 8. Trigger for Transaction Numbers
 CREATE OR REPLACE FUNCTION set_transaction_number()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -81,7 +89,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_set_trx_number ON public.transactions;
 CREATE TRIGGER trigger_set_trx_number
 BEFORE INSERT ON public.transactions
 FOR EACH ROW EXECUTE FUNCTION set_transaction_number();
