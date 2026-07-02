@@ -1,4 +1,4 @@
--- Supabase Database Setup Script
+-- Supabase Database Setup Script (No Authentication)
 -- Paste this script directly in the Supabase SQL Editor
 
 -- 1. Enable UUID Extension if not enabled
@@ -26,7 +26,6 @@ CREATE SEQUENCE IF NOT EXISTS trx_number_seq;
 
 CREATE TABLE IF NOT EXISTS public.transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     transaction_number TEXT UNIQUE,
     type TEXT NOT NULL CHECK (type IN ('topup', 'withdrawal')),
     platform_id UUID REFERENCES public.platforms(id) ON DELETE SET NULL,
@@ -34,15 +33,14 @@ CREATE TABLE IF NOT EXISTS public.transactions (
     date DATE NOT NULL,
     status TEXT NOT NULL DEFAULT 'Completed' CHECK (status IN ('Completed', 'Pending', 'Cancelled')),
     notes TEXT,
-    created_by TEXT, -- Email/Name of creator
+    created_by TEXT DEFAULT 'Admin', -- Default creator indicator
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 4. User Settings Table
+-- 4. User Settings Table (Single Global Row)
 CREATE TABLE IF NOT EXISTS public.settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
     low_balance_warning NUMERIC(15, 2) NOT NULL DEFAULT 500.00,
     critical_balance NUMERIC(15, 2) NOT NULL DEFAULT 100.00,
     currency TEXT NOT NULL DEFAULT 'SAR',
@@ -52,43 +50,27 @@ CREATE TABLE IF NOT EXISTS public.settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- Prepopulate Default Settings if empty
+INSERT INTO public.settings (low_balance_warning, critical_balance, currency, default_language, theme)
+SELECT 500.00, 100.00, 'SAR', 'ar', 'dark'
+WHERE NOT EXISTS (SELECT 1 FROM public.settings);
+
 -- 5. Activity Logs (Audit Trail)
 CREATE TABLE IF NOT EXISTS public.activity_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     transaction_id UUID, -- NULL if transaction was deleted
     action TEXT NOT NULL CHECK (action IN ('CREATE', 'UPDATE', 'DELETE')),
     details TEXT NOT NULL, -- JSON-like string showing changes
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 6. Enable Row Level Security (RLS)
-ALTER TABLE public.platforms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+-- 6. Disable Row Level Security (RLS) since authentication is disabled
+ALTER TABLE public.platforms DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
 
--- 7. RLS Policies
--- Platforms: Read is public or authenticated; modifications restricted
-DROP POLICY IF EXISTS "Allow read access to platforms" ON public.platforms;
-CREATE POLICY "Allow read access to platforms" ON public.platforms FOR SELECT USING (true);
-
--- Transactions Policies
-DROP POLICY IF EXISTS "Users can manage their own transactions" ON public.transactions;
-CREATE POLICY "Users can manage their own transactions" ON public.transactions
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
--- Settings Policies
-DROP POLICY IF EXISTS "Users can manage their own settings" ON public.settings;
-CREATE POLICY "Users can manage their own settings" ON public.settings
-    USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
--- Activity Logs Policies
-DROP POLICY IF EXISTS "Users can view their own activity logs" ON public.activity_logs;
-CREATE POLICY "Users can view their own activity logs" ON public.activity_logs
-    USING (auth.uid() = user_id);
-
--- 8. Trigger for Transaction Numbers
+-- 7. Trigger for Transaction Numbers
 CREATE OR REPLACE FUNCTION set_transaction_number()
 RETURNS TRIGGER AS $$
 BEGIN

@@ -1,4 +1,4 @@
-// FinDash - Supabase Bilingual Financial Dashboard App Script
+// FinDash - Supabase Bilingual Financial Dashboard App Script (No Authentication)
 
 // 1. DYNAMIC CONFIGURATION STATE FOR SUPABASE
 let SUPABASE_URL = localStorage.getItem('findash_supabase_url') || '';
@@ -23,18 +23,6 @@ initSupabase();
 // 2. DICTIONARY FOR TRANSLATIONS (EN / AR)
 const i18n = {
   ar: {
-    login_title: "تسجيل الدخول",
-    login_subtitle: "أدخل تفاصيل حسابك للوصول إلى لوحة التحكم",
-    email: "البريد الإلكتروني",
-    password: "كلمة المرور",
-    sign_in: "تسجيل الدخول",
-    sign_up_now: "سجل الآن",
-    no_account: "ليس لديك حساب؟",
-    signup_title: "إنشاء حساب جديد",
-    signup_subtitle: "ابدأ بإدارة معاملاتك الإعلانية بسهولة",
-    register: "إنشاء الحساب",
-    have_account: "لديك حساب بالفعل؟",
-    sign_in_now: "تسجيل الدخول",
     add_topup: "+ شحن رصيد",
     add_withdrawal: "+ سحب منصة",
     notifications: "التنبيهات والتحليلات",
@@ -94,8 +82,6 @@ const i18n = {
     critical_warning_limit: "تنبيه انخفاض الرصيد (حرج)",
     default_lang: "اللغة الافتراضية",
     theme: "المظهر",
-    toast_login_success: "تم تسجيل الدخول بنجاح!",
-    toast_signup_success: "تم إنشاء الحساب بنجاح! الرجاء تسجيل الدخول.",
     toast_save_success: "تم حفظ المعاملة بنجاح!",
     toast_delete_success: "تم حذف المعاملة بنجاح!",
     toast_settings_success: "تم حفظ الإعدادات بنجاح!",
@@ -111,18 +97,6 @@ const i18n = {
     action_delete: "حذف عملية"
   },
   en: {
-    login_title: "Sign In",
-    login_subtitle: "Enter your account details to access the dashboard",
-    email: "Email Address",
-    password: "Password",
-    sign_in: "Sign In",
-    sign_up_now: "Sign Up Now",
-    no_account: "Don't have an account?",
-    signup_title: "Create New Account",
-    signup_subtitle: "Start managing your advertising transactions easily",
-    register: "Register",
-    have_account: "Already have an account?",
-    sign_in_now: "Sign In",
     add_topup: "+ Add Top-up",
     add_withdrawal: "+ Add Withdrawal",
     notifications: "Insights & Alerts",
@@ -182,8 +156,6 @@ const i18n = {
     critical_warning_limit: "Critical Balance Warning Level",
     default_lang: "Default Language",
     theme: "Theme Mode",
-    toast_login_success: "Logged in successfully!",
-    toast_signup_success: "Account created! Please log in.",
     toast_save_success: "Transaction saved successfully!",
     toast_delete_success: "Transaction deleted successfully!",
     toast_settings_success: "Settings updated successfully!",
@@ -203,7 +175,6 @@ const i18n = {
 // 3. APPLICATION STATE
 let currentLang = localStorage.getItem('findash_lang') || 'ar';
 let currentTheme = localStorage.getItem('findash_theme') || 'dark';
-let currentUser = null;
 let appSettings = {
   currency: 'SAR',
   low_balance_warning: 500,
@@ -257,7 +228,7 @@ function setLanguage(lang) {
   }
   
   // Re-draw text labels in graphs and timeline items
-  if (currentUser) {
+  if (supabase) {
     calculateAndRenderAll();
   }
 }
@@ -289,7 +260,7 @@ function showLoader(show) {
 window.addEventListener('online', () => {
   document.getElementById('offline-banner').classList.add('hidden');
   showToast(currentLang === 'ar' ? 'أنت متصل بالإنترنت الآن' : 'You are now online', 'success');
-  if (currentUser) syncData();
+  syncData();
 });
 
 window.addEventListener('offline', () => {
@@ -327,46 +298,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Prompt for keys if not exists
   checkSupabaseConfiguration();
 
+  // If Supabase initialized, fetch data directly (No auth checking)
   if (supabase) {
-    // Check initial Auth session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        handleAuthSuccess(session.user);
-      } else {
-        showAuthScreen(true);
-      }
-    });
-
-    // Listen to auth changes
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        handleAuthSuccess(session.user);
-      } else {
-        handleLogoutSuccess();
-      }
-    });
+    syncData();
   }
 
-  // Auth Form Handlers
-  document.getElementById('login-form').addEventListener('submit', handleLogin);
-  document.getElementById('signup-form').addEventListener('submit', handleSignup);
-  
-  // Page Swaps
-  document.getElementById('to-signup').addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('login-form').classList.add('hidden');
-    document.getElementById('signup-form').classList.remove('hidden');
-  });
-  document.getElementById('to-login').addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('signup-form').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-  });
-
   // Lang Toggle Buttons
-  document.getElementById('auth-lang-btn').addEventListener('click', () => {
-    setLanguage(currentLang === 'ar' ? 'en' : 'ar');
-  });
   document.getElementById('dashboard-lang-btn').addEventListener('click', () => {
     setLanguage(currentLang === 'ar' ? 'en' : 'ar');
   });
@@ -385,11 +322,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Settings form save handler
   document.getElementById('settings-form').addEventListener('submit', saveSettings);
-
-  // Logout Handler
-  document.getElementById('logout-btn').addEventListener('click', () => {
-    if (supabase) supabase.auth.signOut();
-  });
 
   // Modal Triggers
   document.getElementById('quick-topup-btn').addEventListener('click', () => openTransactionModal('topup'));
@@ -476,70 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// 8. AUTHENTICATION CONTROLLER FLOWS
-function showAuthScreen(show) {
-  if (show) {
-    document.getElementById('auth-screen').classList.remove('hidden');
-    document.getElementById('main-dashboard').classList.add('hidden');
-  } else {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('main-dashboard').classList.remove('hidden');
-  }
-}
-
-async function handleLogin(e) {
-  e.preventDefault();
-  if (!supabase) return;
-  showLoader(true);
-  
-  const email = document.getElementById('login-email').value;
-  const password = document.getElementById('login-password').value;
-  
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  
-  showLoader(false);
-  if (error) {
-    showToast(error.message, 'error');
-  } else {
-    showToast(i18n[currentLang].toast_login_success, 'success');
-  }
-}
-
-async function handleSignup(e) {
-  e.preventDefault();
-  if (!supabase) return;
-  showLoader(true);
-  
-  const email = document.getElementById('signup-email').value;
-  const password = document.getElementById('signup-password').value;
-  
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  
-  showLoader(false);
-  if (error) {
-    showToast(error.message, 'error');
-  } else {
-    showToast(i18n[currentLang].toast_signup_success, 'success');
-    document.getElementById('signup-form').classList.add('hidden');
-    document.getElementById('login-form').classList.remove('hidden');
-  }
-}
-
-function handleAuthSuccess(user) {
-  currentUser = user;
-  document.getElementById('user-email-display').textContent = user.email;
-  showAuthScreen(false);
-  syncData();
-}
-
-function handleLogoutSuccess() {
-  currentUser = null;
-  showAuthScreen(true);
-}
-
 // 9. DATABASE LOGIC (FETCH AND SYNC)
 async function syncData() {
-  if (!supabase || !currentUser) return;
+  if (!supabase) return;
   showLoader(true);
 
   try {
@@ -552,22 +423,21 @@ async function syncData() {
     if (pError) throw pError;
     platformsList = platforms || [];
 
-    // 2. Fetch User Settings
+    // 2. Fetch Global Settings (Single row)
     const { data: settings, error: sError } = await supabase
       .from('settings')
       .select('*')
-      .eq('user_id', currentUser.id)
+      .limit(1)
       .maybeSingle();
 
     if (sError) throw sError;
     if (settings) {
       appSettings = settings;
     } else {
-      // Create default settings if not exists
+      // Create single default settings if not exists
       const { data: newSettings, error: nsError } = await supabase
         .from('settings')
         .insert({
-          user_id: currentUser.id,
           currency: 'SAR',
           low_balance_warning: 500,
           critical_balance: 100,
@@ -585,7 +455,6 @@ async function syncData() {
     const { data: transactions, error: tError } = await supabase
       .from('transactions')
       .select('*, platforms(name, color, icon)')
-      .eq('user_id', currentUser.id)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -596,7 +465,6 @@ async function syncData() {
     const { data: logs, error: lError } = await supabase
       .from('activity_logs')
       .select('*')
-      .eq('user_id', currentUser.id)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -620,11 +488,10 @@ async function syncData() {
 
 // Log actions to the audit log table
 async function logActivity(trxId, action, oldValue, newValue) {
-  if (!supabase || !currentUser) return;
+  if (!supabase) return;
   const details = JSON.stringify({ old: oldValue, new: newValue });
   
   await supabase.from('activity_logs').insert({
-    user_id: currentUser.id,
     transaction_id: trxId,
     action: action,
     details: details
@@ -1205,7 +1072,7 @@ function closeModal(id) {
 
 async function handleTransactionSubmit(e) {
   e.preventDefault();
-  if (!supabase || !currentUser) return;
+  if (!supabase) return;
   showLoader(true);
 
   const trxId = document.getElementById('edit-trx-id').value;
@@ -1217,14 +1084,13 @@ async function handleTransactionSubmit(e) {
   const platformId = type === 'withdrawal' ? document.getElementById('modal-platform').value : null;
 
   const trxData = {
-    user_id: currentUser.id,
     type,
     amount,
     date,
     status,
     notes,
     platform_id: platformId,
-    created_by: currentUser.email,
+    created_by: 'Admin',
     updated_at: new Date().toISOString()
   };
 
@@ -1302,7 +1168,7 @@ async function deleteTransaction() {
   }
 }
 
-// 15. USER SETTINGS PANEL MODAL
+// 15. SYSTEM SETTINGS PANEL MODAL
 function openSettingsModal() {
   document.getElementById('settings-currency').value = appSettings.currency;
   document.getElementById('settings-low-warning').value = appSettings.low_balance_warning;
@@ -1315,7 +1181,7 @@ function openSettingsModal() {
 
 async function saveSettings(e) {
   e.preventDefault();
-  if (!supabase || !currentUser) return;
+  if (!supabase) return;
   showLoader(true);
 
   const currency = document.getElementById('settings-currency').value;
@@ -1335,7 +1201,7 @@ async function saveSettings(e) {
         theme,
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', currentUser.id);
+      .eq('id', appSettings.id);
 
     if (error) throw error;
 
