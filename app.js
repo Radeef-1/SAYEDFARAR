@@ -615,6 +615,24 @@ function calculateAndRenderAll() {
   const avgWithdrawal = withdrawalCount > 0 ? (totalWithdrawals / withdrawalCount) : 0;
   document.getElementById('kpi-avg-withdrawal').textContent = formatCurrencyValue(avgWithdrawal);
 
+  // 5b. Platform Specific Card Values
+  const metaSpend = platformSpend['Meta'] || 0;
+  const tiktokSpend = platformSpend['TikTok'] || 0;
+  const snapchatSpend = platformSpend['Snapchat'] || 0;
+
+  const metaPct = totalWithdrawals > 0 ? ((metaSpend / totalWithdrawals) * 100) : 0;
+  const tiktokPct = totalWithdrawals > 0 ? ((tiktokSpend / totalWithdrawals) * 100) : 0;
+  const snapchatPct = totalWithdrawals > 0 ? ((snapchatSpend / totalWithdrawals) * 100) : 0;
+
+  document.getElementById('platform-spend-meta').textContent = formatCurrencyValue(metaSpend);
+  document.getElementById('platform-pct-meta').textContent = `${Math.round(metaPct)}%`;
+
+  document.getElementById('platform-spend-tiktok').textContent = formatCurrencyValue(tiktokSpend);
+  document.getElementById('platform-pct-tiktok').textContent = `${Math.round(tiktokPct)}%`;
+
+  document.getElementById('platform-spend-snapchat').textContent = formatCurrencyValue(snapchatSpend);
+  document.getElementById('platform-pct-snapchat').textContent = `${Math.round(snapchatPct)}%`;
+
   // 6. Today and Month Spends
   const todayStr = new Date().toISOString().substring(0, 10);
   const thisMonthStr = new Date().toISOString().substring(0, 7);
