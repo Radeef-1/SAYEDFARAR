@@ -271,18 +271,16 @@ window.addEventListener('offline', () => {
 // Check Supabase Credentials form if keys are missing
 function checkSupabaseConfiguration() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    const credsUrl = prompt("Enter Supabase API URL:", SUPABASE_URL);
-    const credsKey = prompt("Enter Supabase Anon Key:", SUPABASE_ANON_KEY);
-    if (credsUrl && credsKey) {
-      SUPABASE_URL = credsUrl.trim();
-      SUPABASE_ANON_KEY = credsKey.trim();
-      localStorage.setItem('findash_supabase_url', SUPABASE_URL);
-      localStorage.setItem('findash_supabase_key', SUPABASE_ANON_KEY);
-      initSupabase();
-      window.location.reload();
-    } else {
-      alert("Application requires valid Supabase credentials to run. Please reload and input valid keys.");
-    }
+    setTimeout(() => {
+      openSettingsModal();
+      const banner = document.getElementById('smart-insight-banner');
+      const textEl = document.getElementById('insight-text');
+      textEl.textContent = currentLang === 'ar' 
+        ? '⚠️ الرجاء إدخال إعدادات الاتصال بـ Supabase (URL & Key) في لوحة الإعدادات للبدء.' 
+        : '⚠️ Please enter your Supabase connection credentials (URL & Key) in the settings panel to get started.';
+      banner.className = 'insight-banner alert-critical';
+      banner.classList.remove('hidden');
+    }, 500);
   }
 }
 
@@ -1170,6 +1168,8 @@ async function deleteTransaction() {
 
 // 15. SYSTEM SETTINGS PANEL MODAL
 function openSettingsModal() {
+  document.getElementById('settings-supabase-url').value = SUPABASE_URL;
+  document.getElementById('settings-supabase-key').value = SUPABASE_ANON_KEY;
   document.getElementById('settings-currency').value = appSettings.currency;
   document.getElementById('settings-low-warning').value = appSettings.low_balance_warning;
   document.getElementById('settings-critical-warning').value = appSettings.critical_balance;
@@ -1181,29 +1181,41 @@ function openSettingsModal() {
 
 async function saveSettings(e) {
   e.preventDefault();
-  if (!supabase) return;
   showLoader(true);
 
+  const url = document.getElementById('settings-supabase-url').value.trim();
+  const key = document.getElementById('settings-supabase-key').value.trim();
   const currency = document.getElementById('settings-currency').value;
   const lowWarning = parseFloat(document.getElementById('settings-low-warning').value);
   const criticalWarning = parseFloat(document.getElementById('settings-critical-warning').value);
   const defaultLang = document.getElementById('settings-lang').value;
   const theme = document.getElementById('settings-theme').value;
 
-  try {
-    const { error } = await supabase
-      .from('settings')
-      .update({
-        currency,
-        low_balance_warning: lowWarning,
-        critical_balance: criticalWarning,
-        default_language: defaultLang,
-        theme,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', appSettings.id);
+  let keysChanged = (url !== SUPABASE_URL || key !== SUPABASE_ANON_KEY);
+  if (keysChanged) {
+    SUPABASE_URL = url;
+    SUPABASE_ANON_KEY = key;
+    localStorage.setItem('findash_supabase_url', url);
+    localStorage.setItem('findash_supabase_key', key);
+    initSupabase();
+  }
 
-    if (error) throw error;
+  try {
+    if (supabase && appSettings && appSettings.id) {
+      const { error } = await supabase
+        .from('settings')
+        .update({
+          currency,
+          low_balance_warning: lowWarning,
+          critical_balance: criticalWarning,
+          default_language: defaultLang,
+          theme,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appSettings.id);
+
+      if (error) throw error;
+    }
 
     appSettings.currency = currency;
     appSettings.low_balance_warning = lowWarning;
@@ -1220,7 +1232,12 @@ async function saveSettings(e) {
     document.body.className = theme === 'dark' ? 'dark-theme' : 'light-theme';
     
     setLanguage(defaultLang);
-    await syncData();
+    
+    if (supabase) {
+      await syncData();
+    } else {
+      showToast(currentLang === 'ar' ? 'تم حفظ المفاتيح محلياً، يرجى إعادة التحميل' : 'Keys saved locally, please reload', 'info');
+    }
 
   } catch (err) {
     showToast(err.message, 'error');
