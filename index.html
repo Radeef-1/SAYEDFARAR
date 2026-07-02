@@ -42,80 +42,8 @@
   <!-- Toast Notification System -->
   <div id="toast-container"></div>
 
-  <!-- 1. AUTH SCREEN -->
-  <div id="auth-screen" class="auth-container">
-    <div class="auth-card">
-      <div class="auth-header-actions">
-        <button id="auth-lang-btn" class="btn btn-icon-text">
-          <i data-lucide="languages"></i>
-          <span>English</span>
-        </button>
-      </div>
-      <div class="auth-logo">
-        <i data-lucide="wallet"></i>
-        <h1>FinDash</h1>
-      </div>
-      
-      <!-- Login Form -->
-      <form id="login-form" class="auth-form">
-        <h2 data-i18n="login_title">تسجيل الدخول</h2>
-        <p class="auth-subtitle" data-i18n="login_subtitle">أدخل تفاصيل حسابك للوصول إلى لوحة التحكم</p>
-        
-        <div class="form-group">
-          <label for="login-email" data-i18n="email">البريد الإلكتروني</label>
-          <div class="input-icon-wrapper">
-            <i data-lucide="mail"></i>
-            <input type="email" id="login-email" required placeholder="name@example.com">
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="login-password" data-i18n="password">كلمة المرور</label>
-          <div class="input-icon-wrapper">
-            <i data-lucide="lock"></i>
-            <input type="password" id="login-password" required placeholder="••••••••">
-          </div>
-        </div>
-        
-        <button type="submit" class="btn btn-primary btn-block" data-i18n="sign_in">تسجيل الدخول</button>
-        <p class="form-footer">
-          <span data-i18n="no_account">ليس لديك حساب؟</span>
-          <a href="#" id="to-signup" data-i18n="sign_up_now">سجل الآن</a>
-        </p>
-      </form>
-
-      <!-- Signup Form -->
-      <form id="signup-form" class="auth-form hidden">
-        <h2 data-i18n="signup_title">إنشاء حساب جديد</h2>
-        <p class="auth-subtitle" data-i18n="signup_subtitle">ابدأ بإدارة معاملاتك الإعلانية بسهولة</p>
-        
-        <div class="form-group">
-          <label for="signup-email" data-i18n="email">البريد الإلكتروني</label>
-          <div class="input-icon-wrapper">
-            <i data-lucide="mail"></i>
-            <input type="email" id="signup-email" required placeholder="name@example.com">
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="signup-password" data-i18n="password">كلمة المرور</label>
-          <div class="input-icon-wrapper">
-            <i data-lucide="lock"></i>
-            <input type="password" id="signup-password" required minlength="6" placeholder="••••••••">
-          </div>
-        </div>
-        
-        <button type="submit" class="btn btn-success btn-block" data-i18n="register">إنشاء الحساب</button>
-        <p class="form-footer">
-          <span data-i18n="have_account">لديك حساب بالفعل؟</span>
-          <a href="#" id="to-login" data-i18n="sign_in_now">تسجيل الدخول</a>
-        </p>
-      </form>
-    </div>
-  </div>
-
-  <!-- 2. MAIN DASHBOARD VIEW -->
-  <div id="main-dashboard" class="dashboard-container hidden">
+  <!-- MAIN DASHBOARD VIEW (Visible by Default) -->
+  <div id="main-dashboard" class="dashboard-container">
     <!-- Navbar Header -->
     <header class="app-header">
       <div class="header-left">
@@ -170,16 +98,6 @@
         <button id="dashboard-settings-btn" class="btn btn-icon">
           <i data-lucide="settings"></i>
         </button>
-
-        <!-- Profile / Logout -->
-        <div class="user-profile-menu">
-          <div class="user-info">
-            <span id="user-email-display" class="user-email">user@example.com</span>
-          </div>
-          <button id="logout-btn" class="btn btn-icon btn-logout">
-            <i data-lucide="log-out"></i>
-          </button>
-        </div>
       </div>
     </header>
 
