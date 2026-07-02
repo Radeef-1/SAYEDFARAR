@@ -1,4 +1,4 @@
--- Supabase Database Setup Script (No Authentication - Fresh Setup)
+-- Supabase Database Setup Script (No Authentication - Public Policies Version)
 -- Paste this script directly in the Supabase SQL Editor
 
 -- 1. Drop old tables, triggers, and sequences to clean up previous schema version
@@ -72,11 +72,21 @@ CREATE TABLE public.activity_logs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 7. Disable Row Level Security (RLS) since authentication is disabled
-ALTER TABLE public.platforms DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
+-- 7. Enable Row Level Security (RLS) but add Public Policies
+-- This ensures access is allowed even if RLS is toggled ON in the Supabase UI
+ALTER TABLE public.platforms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+
+-- Create ALL-access policies for anonymous/public users
+CREATE POLICY "Allow public select on platforms" ON public.platforms FOR SELECT USING (true);
+
+CREATE POLICY "Allow public all on transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow public all on settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow public all on activity_logs" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- 8. Trigger for Transaction Numbers
 CREATE OR REPLACE FUNCTION set_transaction_number()
