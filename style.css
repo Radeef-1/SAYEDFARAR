@@ -768,7 +768,13 @@ html[dir="rtl"] .user-profile-menu {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  min-height: 280px;
+  height: 300px;
+}
+
+.canvas-container {
+  position: relative;
+  height: 220px;
+  width: 100%;
 }
 
 .chart-wrapper h3 {
