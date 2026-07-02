@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark-theme">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم المالية | FinDash</title>
+  
+  <!-- Manifest & PWA Metas -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0f19">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/neon/192/experimental-coins-neon.png">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Libraries (Supabase, Chart.js, Lucide Icons) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+  <!-- Offline / Network Status Banner -->
+  <div id="offline-banner" class="hidden">
+    <div class="banner-content">
+      <i data-lucide="wifi-off"></i>
+      <span data-i18n="offline_msg">أنت غير متصل بالإنترنت حاليًا. قد لا يتم حفظ التغييرات الأخيرة.</span>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="global-loader" class="loader-overlay hidden">
+    <div class="spinner"></div>
+    <p data-i18n="loading">جاري التحميل...</p>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container"></div>
+
+  <!-- 1. AUTH SCREEN -->
+  <div id="auth-screen" class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header-actions">
+        <button id="auth-lang-btn" class="btn btn-icon-text">
+          <i data-lucide="languages"></i>
+          <span>English</span>
+        </button>
+      </div>
+      <div class="auth-logo">
+        <i data-lucide="wallet"></i>
+        <h1>FinDash</h1>
+      </div>
+      
+      <!-- Login Form -->
+      <form id="login-form" class="auth-form">
+        <h2 data-i18n="login_title">تسجيل الدخول</h2>
+        <p class="auth-subtitle" data-i18n="login_subtitle">أدخل تفاصيل حسابك للوصول إلى لوحة التحكم</p>
+        
+        <div class="form-group">
+          <label for="login-email" data-i18n="email">البريد الإلكتروني</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="mail"></i>
+            <input type="email" id="login-email" required placeholder="name@example.com">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="login-password" data-i18n="password">كلمة المرور</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="lock"></i>
+            <input type="password" id="login-password" required placeholder="••••••••">
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-block" data-i18n="sign_in">تسجيل الدخول</button>
+        <p class="form-footer">
+          <span data-i18n="no_account">ليس لديك حساب؟</span>
+          <a href="#" id="to-signup" data-i18n="sign_up_now">سجل الآن</a>
+        </p>
+      </form>
+
+      <!-- Signup Form -->
+      <form id="signup-form" class="auth-form hidden">
+        <h2 data-i18n="signup_title">إنشاء حساب جديد</h2>
+        <p class="auth-subtitle" data-i18n="signup_subtitle">ابدأ بإدارة معاملاتك الإعلانية بسهولة</p>
+        
+        <div class="form-group">
+          <label for="signup-email" data-i18n="email">البريد الإلكتروني</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="mail"></i>
+            <input type="email" id="signup-email" required placeholder="name@example.com">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="signup-password" data-i18n="password">كلمة المرور</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="lock"></i>
+            <input type="password" id="signup-password" required minlength="6" placeholder="••••••••">
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-success btn-block" data-i18n="register">إنشاء الحساب</button>
+        <p class="form-footer">
+          <span data-i18n="have_account">لديك حساب بالفعل؟</span>
+          <a href="#" id="to-login" data-i18n="sign_in_now">تسجيل الدخول</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. MAIN DASHBOARD VIEW -->
+  <div id="main-dashboard" class="dashboard-container hidden">
+    <!-- Navbar Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand">
+          <i data-lucide="wallet"></i>
+          <span>FinDash</span>
+        </div>
+        <div class="sync-status">
+          <span class="sync-dot"></span>
+          <span id="last-sync-time" class="sync-text">Last Sync: Connecting...</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Quick Action Buttons -->
+        <button id="quick-topup-btn" class="btn btn-success">
+          <i data-lucide="plus-circle"></i>
+          <span data-i18n="add_topup">+ شحن رصيد</span>
+        </button>
+        <button id="quick-withdraw-btn" class="btn btn-danger">
+          <i data-lucide="minus-circle"></i>
+          <span data-i18n="add_withdrawal">+ سحب منصة</span>
+        </button>
+        
+        <!-- Notification Dropdown Toggle -->
+        <div class="dropdown-wrapper">
+          <button id="noti-toggle-btn" class="btn btn-icon">
+            <i data-lucide="bell"></i>
+            <span id="noti-badge" class="badge hidden">0</span>
+          </button>
+          <div id="noti-panel" class="dropdown-panel hidden">
+            <div class="dropdown-panel-header">
+              <h3 data-i18n="notifications">التنبيهات والتحليلات</h3>
+              <button id="clear-noti-btn" class="btn btn-text btn-sm" data-i18n="clear_all">مسح الكل</button>
+            </div>
+            <div id="noti-list" class="dropdown-panel-body">
+              <div class="empty-noti" data-i18n="no_notifications">لا توجد تنبيهات نشطة حالياً.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Language Button -->
+        <button id="dashboard-lang-btn" class="btn btn-icon">
+          <i data-lucide="languages"></i>
+        </button>
+
+        <!-- Theme Button -->
+        <button id="dashboard-theme-btn" class="btn btn-icon">
+          <i data-lucide="sun"></i>
+        </button>
+
+        <!-- Settings Button -->
+        <button id="dashboard-settings-btn" class="btn btn-icon">
+          <i data-lucide="settings"></i>
+        </button>
+
+        <!-- Profile / Logout -->
+        <div class="user-profile-menu">
+          <div class="user-info">
+            <span id="user-email-display" class="user-email">user@example.com</span>
+          </div>
+          <button id="logout-btn" class="btn btn-icon btn-logout">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-body">
+      <!-- Main Smart Insight Banner -->
+      <div id="smart-insight-banner" class="insight-banner hidden">
+        <i data-lucide="zap" class="insight-icon"></i>
+        <div class="insight-content">
+          <p id="insight-text"></p>
+        </div>
+      </div>
+
+      <!-- Grid of KPIs (8 Cards) -->
+      <section class="kpi-grid">
+        <!-- 1. Card Balance Progress -->
+        <div class="kpi-card glass card-span-2">
+          <div class="kpi-header">
+            <span data-i18n="card_limit">حالة رصيد الحساب</span>
+            <i data-lucide="credit-card" class="kpi-icon accent-blue"></i>
+          </div>
+          <div class="kpi-body">
+            <div class="progress-bar-container">
+              <div id="card-progress-fill" class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+            <div class="progress-labels">
+              <span id="progress-percent" class="progress-percentage">0%</span>
+              <span id="progress-remaining" class="progress-amount">0 SAR Remaining</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Current Balance -->
+        <div class="kpi-card glass">
+          <div class="kpi-header">
+            <span data-i18n="current_balance">الرصيد الحالي</span>
+            <i data-lucide="coins" class="kpi-icon text-success"></i>
+          </div>
+          <div class="kpi-body">
+            <h2 id="kpi-balance" class="kpi-value text-success">0.00</h2>
+            <p id="kpi-balance-currency" class="kpi-meta">SAR</p>
+          </div>
+        </div>
+
+        <!-- 3. Net Cash Flow -->
+        <div class="kpi-card glass">
+          <div class="kpi-header">
+            <span data-i18n="net_cashflow">صافي التدفق النقدي</span>
+            <i data-lucide="shuffle" class="kpi-icon text-info"></i>
+          </div>
+          <div class="kpi-body">
+            <h2 id="kpi-netflow" class="kpi-value">0.00</h2>
+            <p class="kpi-meta" id="kpi-netflow-currency">SAR</p>
+          </div>
+        </div>
+
+        <!-- 4. Total Topups -->
+        <div class="kpi-card glass">
+          <div class="kpi-header">
+            <span data-i18n="total_topups">إجمالي الشحن</span>
+            <i data-lucide="arrow-up-right" class="kpi-icon text-success"></i>
+          </div>
+          <div class="kpi-body">
+            <h2 id="kpi-topups" class="kpi-value">0.00</h2>
+            <p class="kpi-meta"><span id="kpi-topups-count">0</span> <span data-i18n="times">عمليات</span></p>
+          </div>
+        </div>
+
+        <!-- 5. Total Withdrawals -->
+        <div class="kpi-card glass">
+          <div class="kpi-header">
+            <span data-i18n="total_withdrawals">إجمالي السحوبات</span>
+            <i data-lucide="arrow-down-left" class="kpi-icon text-danger"></i>
+          </div>
+          <div class="kpi-body">
+            <h2 id="kpi-withdrawals" class="kpi-value">0.00</h2>
+            <p class="kpi-meta"><span id="kpi-withdrawals-count">0</span> <span data-i18n="times">عمليات</span></p>
+          </div>
+        </div>
+
+        <!-- 6. Highest Spending Platform -->
+        <div class="kpi-card glass">
+          <div class="kpi-header">
+            <span data-i18n="highest_platform">أعلى منصة إنفاق</span>
+            <i data-lucide="trending-up" class="kpi-icon text-warning"></i>
+          </div>
+          <div class="kpi-body">
+            <h2 id="kpi-high-platform" class="kpi-value">-</h2>
+            <p class="kpi-meta"><span data-i18n="avg_withdrawal">م.سحب:</span> <span id="kpi-avg-withdrawal">0.00</span></p>
+          </div>
+        </div>
+
+        <!-- 7. Spend Timelines -->
+        <div class="kpi-card glass">
+          <div class="kpi-header">
+            <span data-i18n="spend_period">صرف (اليوم / الشهر)</span>
+            <i data-lucide="calendar" class="kpi-icon text-primary"></i>
+          </div>
+          <div class="kpi-body">
+            <div class="split-stats">
+              <div>
+                <span class="split-label" data-i18n="today_spend">اليوم</span>
+                <span id="kpi-today-spend" class="split-value">0.00</span>
+              </div>
+              <div class="split-divider"></div>
+              <div>
+                <span class="split-label" data-i18n="month_spend">الشهر</span>
+                <span id="kpi-month-spend" class="split-value">0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. Performance Metas -->
+        <div class="kpi-card glass">
+          <div class="kpi-header">
+            <span data-i18n="days_forecast">تنبؤ بالرصيد المتبقي</span>
+            <i data-lucide="hourglass" class="kpi-icon text-danger"></i>
+          </div>
+          <div class="kpi-body">
+            <h2 id="kpi-forecast-days" class="kpi-value">-</h2>
+            <p class="kpi-meta"><span data-i18n="daily_avg_spend">م.الصرف اليومي:</span> <span id="kpi-daily-avg">0.00</span></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Advanced Stats (Largest items) -->
+      <section class="meta-stats-row">
+        <div class="meta-badge-wrapper">
+          <span class="meta-label"><i data-lucide="award"></i> <span data-i18n="max_topup">أكبر عملية شحن:</span></span>
+          <strong id="meta-max-topup">0.00</strong>
+        </div>
+        <div class="meta-badge-wrapper">
+          <span class="meta-label"><i data-lucide="shield-alert"></i> <span data-i18n="max_withdrawal">أكبر عملية سحب:</span></span>
+          <strong id="meta-max-withdrawal">0.00</strong>
+        </div>
+        <div class="meta-badge-wrapper">
+          <span class="meta-label"><i data-lucide="flame"></i> <span data-i18n="highest_spend_day">أعلى يوم صرف:</span></span>
+          <strong id="meta-max-spend-day">-</strong>
+        </div>
+      </section>
+
+      <!-- Split Layout: Analytics (Charts) & Timeline -->
+      <div class="dashboard-split">
+        <!-- Analytics Column -->
+        <div class="dashboard-column glass">
+          <div class="section-header">
+            <div class="header-title">
+              <i data-lucide="bar-chart-3"></i>
+              <h2 data-i18n="analytics_charts">الرسوم البيانية والتحليل</h2>
+            </div>
+            
+            <!-- Dynamic Graph filter -->
+            <div class="chart-timeframe-selectors">
+              <button class="btn btn-sm btn-filter active" data-timeframe="7">7D</button>
+              <button class="btn btn-sm btn-filter" data-timeframe="30">30D</button>
+              <button class="btn btn-sm btn-filter" data-timeframe="90">90D</button>
+              <button class="btn btn-sm btn-filter" data-timeframe="365">1Y</button>
+              <button class="btn btn-sm btn-filter" data-timeframe="all">All</button>
+            </div>
+          </div>
+
+          <div class="charts-grid">
+            <div class="chart-wrapper">
+              <h3 data-i18n="chart_balance_time">حركة الرصيد التراكمية</h3>
+              <canvas id="chart-balance"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <h3 data-i18n="chart_platform_pie">توزيع الإنفاق حسب المنصات</h3>
+              <canvas id="chart-platform"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <h3 data-i18n="chart_daily_spend">الصرف اليومي</h3>
+              <canvas id="chart-daily"></canvas>
+            </div>
+            <div class="chart-wrapper">
+              <h3 data-i18n="chart_monthly_spend">الصرف الشهري</h3>
+              <canvas id="chart-monthly"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- History/Audit Column -->
+        <div class="dashboard-column glass">
+          <div class="section-header">
+            <div class="header-title">
+              <i data-lucide="history"></i>
+              <h2 data-i18n="transaction_history">سجل المعاملات</h2>
+            </div>
+            
+            <!-- Actions (Export center) -->
+            <div class="history-actions-row">
+              <button id="export-csv-btn" class="btn btn-icon" title="CSV">
+                <i data-lucide="file-spreadsheet"></i>
+              </button>
+              <button id="export-excel-btn" class="btn btn-icon" title="Excel">
+                <i data-lucide="sheet"></i>
+              </button>
+              <button id="export-pdf-btn" class="btn btn-icon" title="Print/PDF">
+                <i data-lucide="printer"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick filters for table lists -->
+          <div class="history-fast-filters">
+            <button class="btn btn-sm btn-fastactive" data-fast-filter="all" data-i18n="filter_all">الكل</button>
+            <button class="btn btn-sm" data-fast-filter="today" data-i18n="filter_today">اليوم</button>
+            <button class="btn btn-sm" data-fast-filter="yesterday" data-i18n="filter_yesterday">أمس</button>
+            <button class="btn btn-sm" data-fast-filter="7days" data-i18n="filter_7d">آخر 7 أيام</button>
+            <button class="btn btn-sm" data-fast-filter="30days" data-i18n="filter_30d">آخر 30 يوم</button>
+            <button class="btn btn-sm" id="btn-custom-filter" data-fast-filter="custom" data-i18n="filter_custom">مخصص</button>
+          </div>
+
+          <!-- Search & Custom Date Filters Wrapper -->
+          <div class="search-date-filters hidden" id="custom-filters-wrapper">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label data-i18n="from_date">من تاريخ</label>
+                <input type="date" id="filter-start-date">
+              </div>
+              <div class="form-group flex-1">
+                <label data-i18n="to_date">إلى تاريخ</label>
+                <input type="date" id="filter-end-date">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <input type="text" id="search-notes" placeholder="بحث بالملاحظات أو رقم العملية...">
+              </div>
+              <button id="apply-filters-btn" class="btn btn-primary" data-i18n="apply">تطبيق</button>
+              <button id="reset-filters-btn" class="btn btn-text" data-i18n="reset">إعادة تعيين</button>
+            </div>
+          </div>
+
+          <!-- Transaction List Switcher: Timeline / Audit Logs -->
+          <div class="tabs-header">
+            <button class="tab-btn active" id="tab-timeline" data-tab="timeline-content" data-i18n="timeline">الجدول الزمني</button>
+            <button class="tab-btn" id="tab-audit" data-tab="audit-content" data-i18n="audit_log">سجل المراجعة</button>
+          </div>
+
+          <!-- Tab Contents -->
+          <div class="tab-viewport">
+            <!-- Timeline (Latest Transactions list) -->
+            <div id="timeline-content" class="tab-pane active">
+              <div id="timeline-list" class="timeline-container">
+                <!-- Timeline items injected dynamically -->
+                <div class="empty-list" data-i18n="empty_transactions">لا توجد معاملات بعد. أضف شحن أو سحب للبدء!</div>
+              </div>
+            </div>
+
+            <!-- Audit Logs -->
+            <div id="audit-content" class="tab-pane">
+              <div id="audit-logs-list" class="audit-logs-container">
+                <!-- Audit logs injected dynamically -->
+                <div class="empty-list" data-i18n="empty_audit">سجل المراجعة فارغ.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= MODALS & OVERLAYS ================= -->
+
+  <!-- A. TRANSACTION MODAL (ADD / EDIT) -->
+  <div id="transaction-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modal-title">إضافة عملية</h2>
+        <button class="modal-close btn-icon" onclick="closeModal('transaction-modal')">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="transaction-form" class="modal-body">
+        <input type="hidden" id="edit-trx-id">
+        <input type="hidden" id="edit-trx-type">
+        
+        <!-- Platform Input (Only visible for withdrawals) -->
+        <div class="form-group" id="modal-platform-group">
+          <label for="modal-platform" data-i18n="platform">المنصة</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="monitor"></i>
+            <select id="modal-platform">
+              <!-- Dynamically populated from platforms table -->
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modal-amount" data-i18n="amount">المبلغ</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="dollar-sign"></i>
+            <input type="number" id="modal-amount" step="0.01" required placeholder="0.00">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modal-date" data-i18n="date">التاريخ</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="calendar"></i>
+            <input type="date" id="modal-date" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modal-status" data-i18n="status">حالة العملية</label>
+          <div class="input-icon-wrapper">
+            <i data-lucide="activity"></i>
+            <select id="modal-status">
+              <option value="Completed">Completed</option>
+              <option value="Pending">Pending</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modal-notes" data-i18n="notes">ملاحظات</label>
+          <textarea id="modal-notes" rows="3" placeholder="أدخل تفاصيل إضافية..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('transaction-modal')" data-i18n="cancel">إلغاء</button>
+          <button type="submit" class="btn btn-primary" id="save-trx-btn" data-i18n="save">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- B. CONFIRM DELETE MODAL -->
+  <div id="confirm-delete-modal" class="modal-overlay hidden">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 data-i18n="confirm_delete_title">تأكيد الحذف</h2>
+        <button class="modal-close btn-icon" onclick="closeModal('confirm-delete-modal')">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body text-center">
+        <i data-lucide="alert-triangle" class="warn-modal-icon"></i>
+        <p data-i18n="confirm_delete_msg">هل أنت متأكد من رغبتك في حذف هذه المعاملة بشكل نهائي؟ لا يمكن التراجع عن هذا الإجراء.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('confirm-delete-modal')" data-i18n="cancel">إلغاء</button>
+        <button id="confirm-delete-btn" class="btn btn-danger" data-i18n="delete">حذف المعاملة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- C. SETTINGS MODAL -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 data-i18n="settings_title">إعدادات النظام</h2>
+        <button class="modal-close btn-icon" onclick="closeModal('settings-modal')">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="settings-form" class="modal-body">
+        <div class="form-group">
+          <label for="settings-currency" data-i18n="currency">العملة</label>
+          <input type="text" id="settings-currency" required placeholder="SAR">
+        </div>
+
+        <div class="form-group">
+          <label for="settings-low-warning" data-i18n="low_warning_limit">تنبيه انخفاض الرصيد (تحذير)</label>
+          <input type="number" id="settings-low-warning" step="1" required placeholder="500">
+        </div>
+
+        <div class="form-group">
+          <label for="settings-critical-warning" data-i18n="critical_warning_limit">تنبيه انخفاض الرصيد (حرج)</label>
+          <input type="number" id="settings-critical-warning" step="1" required placeholder="100">
+        </div>
+
+        <div class="form-group">
+          <label for="settings-lang" data-i18n="default_lang">اللغة الافتراضية</label>
+          <select id="settings-lang">
+            <option value="ar">العربية (RTL)</option>
+            <option value="en">English (LTR)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="settings-theme" data-i18n="theme">المظهر</label>
+          <select id="settings-theme">
+            <option value="dark">Dark Theme</option>
+            <option value="light">Light Theme</option>
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('settings-modal')" data-i18n="cancel">إلغاء</button>
+          <button type="submit" class="btn btn-primary" data-i18n="save">حفظ الإعدادات</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>
