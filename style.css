@@ -567,6 +567,18 @@ html[dir="rtl"] .user-profile-menu {
   grid-column: span 2;
 }
 
+.platform-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .platform-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .kpi-card {
   padding: 24px;
   display: flex;
